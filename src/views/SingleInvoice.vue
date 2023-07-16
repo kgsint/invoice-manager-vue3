@@ -80,7 +80,6 @@ const updateAsDraft = async (id) => {
 
 }
 
-
 </script>
 
 

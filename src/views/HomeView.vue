@@ -59,10 +59,10 @@ const filteredInvoices = computed(() => {
           </div>
 
           <ul v-show="filterMenu" class="absolute z-10 bg-slate-950  shadow-md text-sm space-y-4 top-7 w-full rounded-md">
+            <li @click="currentState = 'all'" class="cursor-pointer hover:bg-slate-700 p-2 w-full rounded-sm duration-150 ease-in">All</li>
               <li @click="currentState = 'draft'" class="cursor-pointer hover:bg-slate-700 p-2 w-full rounded-sm duration-150 ease-in">Draft</li>
               <li @click="currentState = 'pending'" class="cursor-pointer hover:bg-slate-700 p-2 w-full rounded-sm duration-150 ease-in">Pending</li>
               <li @click="currentState = 'paid'" class="cursor-pointer hover:bg-slate-700 p-2 w-full rounded-sm duration-150 ease-in">Paid</li>
-              <li @click="currentState = 'all'" class="cursor-pointer hover:bg-slate-700 p-2 w-full rounded-sm duration-150 ease-in">Clear Filter</li>
           </ul>
         </div>
         <!-- add new invoice -->

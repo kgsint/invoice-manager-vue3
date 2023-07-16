@@ -1,23 +1,29 @@
 <script setup>
 
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive } from 'vue'
 import useCollection from '../composables/useCollection'
 import { useInvoiceStore } from '../stores/useInvoiceStore'
 import { useIndexStore } from '../stores/useIndexStore';
 import { uid } from 'uid'
 import Spinner from './Spinner.vue'
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const indexStore = useIndexStore() // pinia global state
 const invoiceStore = useInvoiceStore() // invoice store
 
 const route = useRoute()
+const router = useRouter()
 
 // close this form when click the overlay or cancel button
-const closeForm = () => {
+const closeForm = async () => {
+    if(invoiceStore.isEdit) {
+        router.go()
+    }
+
     indexStore.showCreateModal = false
 
     invoiceStore.isEdit = false // reset just in case
+    
 }
 
 // from composable
@@ -47,6 +53,16 @@ let form = reactive({
         invoiceTotal: 0,
 })
 
+// if is edit, populate the form
+let invoiceDetails = invoiceStore.invoices.filter(invoice => invoice.invoiceId === route.params.invoiceId)[0]
+if(invoiceStore.isEdit) {
+    await invoiceStore.getInvoicesFromFirebase()
+    
+    form = invoiceDetails
+
+    // console.log(invoiceDetails)
+}
+
 // set date in invoice date
 let invoiceDateUnix = ref(null)
 invoiceDateUnix = Date.now()
@@ -59,16 +75,16 @@ form.invoiceDate = new Date(invoiceDateUnix).toLocaleDateString('en-us', {
 // set date in payment due date
 let paymentDueDateUnix = ref(null)
 // watch changes in payment terms and update payment due date
-watch(() => form.paymentTerms, (value) => {
+const updatePaymentDueDate = () => {
     const date = new Date()
-    paymentDueDateUnix = date.setDate(date.getDate() + parseInt(value))
+    paymentDueDateUnix = date.setDate(date.getDate() + parseInt(form.paymentTerms))
 
     form.paymentDueDate = new Date(paymentDueDateUnix).toLocaleString('en-us', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
     })
-})
+}
 
 // add item to invoice list array
 const addNewInvoiceItem = () => {
@@ -99,17 +115,10 @@ const saveDraft = async() => {
 
     // close form
     closeForm()
+    router.go()
 }
 
-// if is edit, populate the form
-let invoiceDetails = invoiceStore.invoices.filter(invoice => invoice.invoiceId === route.params.invoiceId)[0]
-if(invoiceStore.isEdit) {
-    await invoiceStore.getInvoicesFromFirebase()
-    
-    form = invoiceDetails
 
-    // console.log(invoiceDetails)
-}
 
 // submit from
 const handleSubmit = async () => {
@@ -128,11 +137,18 @@ const handleSubmit = async () => {
     if(invoiceStore.isEdit) {
         form.invoiceDraft = null
         await updateDocument(invoiceDetails.id, { invoiceId: invoiceDetails.invoiceId, ...form})
+
+        // reset state and refetch data
+        invoiceStore.isEdit = false
+        indexStore.showCreateModal = false
+       
+        return;
     }else {
         await addDocument({ invoiceId: uid(6), ...form }) // add document to firestore collection
+        // reload to update data
+        closeForm()
+        router.go()
     }
-
-    closeForm()
 
 }
 
@@ -317,12 +333,12 @@ const handleSubmit = async () => {
                         class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Payment's terms</label>
 
                     <select 
+                        @change="updatePaymentDueDate"
                         class=" 
                         text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block 
                         w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                         v-model="form.paymentTerms" 
                         required
-                        :disabled="invoiceStore.isEdit"
                     >
                         <option value="30" :selected="form.paymentTerms == '30'" selected>Net 30 Days</option>
                         <option value="60" :selected="form.paymentTerms == '60'">Net 60 Days</option>
